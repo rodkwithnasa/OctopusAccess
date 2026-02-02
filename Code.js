@@ -519,36 +519,42 @@ function testGetWeather(){
  * @param stopTime {Date} stop time for weather
  * @param sheet {Sheet} sheet to update with results
  */
-function testGetWeatherStartStop(startTime,stopTime,sheet){
-  let accum = [];
-  const currentDate = new Date();
-  const currentYear = currentDate.getFullYear();
+function testGetWeatherStartStop(startTime, stopTime, sheet) {
   const ps = PropertiesService.getScriptProperties();
-  const weatherHost = ps.getProperty('weatherurl_host');  
-  const currentBase = `${weatherHost}/webpages/vws/dailyrep.html`;
-  const fromYear = startTime.getFullYear();
-  const toYear = stopTime.getFullYear();
-  for ( const year of pRange(fromYear,toYear+1)){
-    const base = `${weatherHost}/archive/${year}dayr.html`;
-    accum.push(...getWeather(year == currentYear ? currentBase : base));
-  }
-  let outVals = [];
-  const outValsH = [["Consumption","IntervalStart","IntervalEnd","Rate","Cost","Rate Type"]]
-  for (const val of accum) {
-    const [theDate,,,,,,,,,,,,,aveTemp,hiTemp,loTemp] = val.match(/\S+/g) || [];  
-    outVals.push([aveTemp,parseDMY(theDate),0,0,0,"Average Temp"]);
-    outVals.push([hiTemp,parseDMY(theDate),0,0,0,"Hi Temp"]);
-    outVals.push([loTemp,parseDMY(theDate),0,0,0,"Lo Temp"]);
-  }
-  const outVals2 = outVals.filter(arg => (arg[1]>=startTime) && (arg[1]<=stopTime)).map(row1=>
-    [row1[0],gSheetToDate(row1[1].toISOString()),row1[2],row1[3],row1[4],row1[5]]
-  );
+  const weatherHost = ps.getProperty('weatherurl_host');
+  const currentYear = new Date().getFullYear();
 
-  const outVals4 = [outValsH[0],...outVals2]; 
-  sheet.clearContents(); 
-  const range = sheet.getRange(1, 1, outVals4.length, outVals4[0].length);
-  range.setValues(outVals4);
-  sheet.autoResizeColumns(1, outVals4[0].length);
+  const yearlyData = Array.from(pRange(startTime.getFullYear(), stopTime.getFullYear() + 1));
+
+  const weatherData = yearlyData.flatMap(year => {
+    const url = (year === currentYear)
+      ? `${weatherHost}/webpages/vws/dailyrep.html`
+      : `${weatherHost}/archive/${year}dayr.html`;
+    return getWeather(url);
+  });
+
+  const processedData = weatherData.flatMap(val => {
+    const [theDate, , , , , , , , , , , , , aveTemp, hiTemp, loTemp] = val.match(/\S+/g) || [];
+    const date = parseDMY(theDate);
+
+    if (date >= startTime && date <= stopTime) {
+      const gSheetDateStr = gSheetToDate(date.toISOString());
+      return [
+        [aveTemp, gSheetDateStr, 0, 0, 0, "Average Temp"],
+        [hiTemp, gSheetDateStr, 0, 0, 0, "Hi Temp"],
+        [loTemp, gSheetDateStr, 0, 0, 0, "Lo Temp"]
+      ];
+    }
+    return [];
+  });
+
+  const header = [["Consumption", "IntervalStart", "IntervalEnd", "Rate", "Cost", "Rate Type"]];
+  const outputData = header.concat(processedData);
+
+  sheet.clearContents();
+  const range = sheet.getRange(1, 1, outputData.length, outputData[0].length);
+  range.setValues(outputData);
+  sheet.autoResizeColumns(1, outputData[0].length);
 }
 /**
  * New wrapper function fetchAllDataFromApi that holds start and stop time and sheets to update, and calls
