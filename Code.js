@@ -12,19 +12,12 @@
  * @param {number} stop.mins - stop time minutes portion
  * @returns {boolean} - True if time portion of input date is in range, false otherwise.
  */
-function isTimeBetweenSpecificRange(date,start,stop) {
-    const hours = date.getHours();
-    const minutes = date.getMinutes();
+function isTimeBetweenSpecificRange(date, start, stop) {
+    const currentTimeInMinutes = date.getHours() * 60 + date.getMinutes();
+    const startTimeInMinutes = start.hours * 60 + start.mins;
+    const stopTimeInMinutes = stop.hours * 60 + stop.mins;
 
-    // The condition covers 00:30:00.000 up to (but not including) 05:30:00.000
-
-    // Condition 1: Time is exactly 00:30 or later in the 00:xx hour
-    const isAfterStartTime = (hours === start.hours && minutes >= start.mins) || hours > start.hours ;
-
-    // Condition 2: Time is before 05:30 in the 05:xx hour, or earlier
-    const isBeforeEndTime = (hours < stop.hours) || (hours === stop.hours && minutes < stop.mins);
-
-    return isAfterStartTime && isBeforeEndTime;
+    return currentTimeInMinutes >= startTimeInMinutes && currentTimeInMinutes < stopTimeInMinutes;
 }
 /**
  * simulate Python range function
@@ -134,66 +127,73 @@ const exportFormat = row => {
             const outputRows = [formattedRow];
             return outputRows;
           }
-/**
- * Returns the formatted rows for Gas Tariff
- * @param row
- * @returns formatted row
- */
-const gasTariffFormat = row => {
-            const formattedRow = [row[1],gSheetToDate(row[2]),(row[3])? gSheetToDate(row[3]):null,row[4],0,"GasTariff"];
-            const outputRows = [formattedRow];
-            return outputRows;
-          }
-/**
- * Returns the formatted rows for Gas Tariff Standing Charges
- * @param row
- * @returns formatted row
- */
-const gasTariffSTFormat = row => {
-            const formattedRow = [row[1],gSheetToDate(row[2]),(row[3])? gSheetToDate(row[3]):null,row[4],0,"GasTariffST"];
-            const outputRows = [formattedRow];
-            return outputRows;
-          }
-/**
- * Returns the formatted rows for Elec Import Tariff Standing Charges
- * @param row
- * @returns formatted row
- */
-const elecImportTariffSTFormat = row => {
-            const formattedRow = [row[1],gSheetToDate(row[2]),(row[3])? gSheetToDate(row[3]):null,row[4],0,"ElecImportTariffST"];
-            const outputRows = [formattedRow];
-            return outputRows;
-          }
-/**
- * Returns the formatted rows for Elec Export Tariff Standing Charges
- * @param row
- * @returns formatted row
- */
-const elecExportTariffSTFormat = row => {
-            const formattedRow = [row[1],gSheetToDate(row[2]),(row[3])? gSheetToDate(row[3]):null,row[4],0,"ElecExportTariffST"];
-            const outputRows = [formattedRow];
-            return outputRows;
-          }
-/**
- * Returns the formatted rows for Elec Import Tariff
- * @param row
- * @returns formatted row
- */
-const elecImportTariffFormat = row => {
-            const formattedRow = [row[1],gSheetToDate(row[2]),(row[3])? gSheetToDate(row[3]):null,row[4],0,"ElecImportTariff"];
-            const outputRows = [formattedRow];
-            return outputRows;
-          }
-/**
- * Returns the formatted rows for Elec Export Tariff
- * @param row
- * @returns formatted row
- */
-const elecExportTariffFormat = row => {
-            const formattedRow = [row[1],gSheetToDate(row[2]),(row[3])? gSheetToDate(row[3]):null,row[4],0,"ElecExportTariff"];
-            const outputRows = [formattedRow];
-            return outputRows;
-          }
+const idx = i => row => row[i];
+
+function createFormatter(config) {
+  return row => {
+    const formattedRow = config.map(item => {
+      if (typeof item === 'function') {
+        return item(row);
+      }
+      return item;
+    });
+    return [formattedRow];
+  };
+}
+
+const gasTariffFormat = createFormatter([
+  idx(1),
+  row => gSheetToDate(row[2]),
+  row => (row[3] ? gSheetToDate(row[3]) : null),
+  idx(4),
+  0,
+  "GasTariff"
+]);
+
+const gasTariffSTFormat = createFormatter([
+  idx(1),
+  row => gSheetToDate(row[2]),
+  row => (row[3] ? gSheetToDate(row[3]) : null),
+  idx(4),
+  0,
+  "GasTariffST"
+]);
+
+const elecImportTariffSTFormat = createFormatter([
+  idx(1),
+  row => gSheetToDate(row[2]),
+  row => (row[3] ? gSheetToDate(row[3]) : null),
+  idx(4),
+  0,
+  "ElecImportTariffST"
+]);
+
+const elecExportTariffSTFormat = createFormatter([
+  idx(1),
+  row => gSheetToDate(row[2]),
+  row => (row[3] ? gSheetToDate(row[3]) : null),
+  idx(4),
+  0,
+  "ElecExportTariffST"
+]);
+
+const elecImportTariffFormat = createFormatter([
+  idx(1),
+  row => gSheetToDate(row[2]),
+  row => (row[3] ? gSheetToDate(row[3]) : null),
+  idx(4),
+  0,
+  "ElecImportTariff"
+]);
+
+const elecExportTariffFormat = createFormatter([
+  idx(1),
+  row => gSheetToDate(row[2]),
+  row => (row[3] ? gSheetToDate(row[3]) : null),
+  idx(4),
+  0,
+  "ElecExportTariff"
+]);
 /**
  * Parses a date in UK format 
  * @param {string} value - the date string to be parsed delimited by slash characters
