@@ -217,6 +217,76 @@ const calorificFormat = row => {
             const outputRows = [formattedRow];
             return outputRows;
           }
+		  
+const accountFormat = (row,idx) => {
+  return row.map(row1 => idx === 0 ? 
+  [[row1.mpan,gSheetToDate(Date()),0,0,0,row1.is_export ? "ExportMPAN":"ImportMPAN"],
+  [row1.meters[row1.is_export ? 0 :1].serial_number,gSheetToDate(Date()),0,0,0,"eMeter"]] :
+  [[row1.mprn,gSheetToDate(Date()),0,0,0,"GasMPRN"],
+  [row1.meters[1].serial_number,gSheetToDate(Date()),0,0,0,"gMeter"]]).flat()};
+
+function fetchAccountDataFromApi() {
+  // --- CUSTOMIZE THESE THREE VARIABLES ---
+  const ps = PropertiesService.getScriptProperties();
+  const sp = ps.getProperties();
+
+  const apiUsername = sp.api_usernameProp;
+  const apiPassword = ''; 
+  // ---------------------------------------
+  // Combine credentials into the required Basic Auth format
+  const credentials = apiUsername + ':' + apiPassword;
+  // Use the built-in Apps Script function to Base64 encode the credentials
+  const encodedCredentials = Utilities.base64Encode(credentials);
+  const authHeader = 'Basic ' + encodedCredentials;
+
+  // Define the options object for UrlFetchApp.fetch()
+  const options = {
+    'headers': {
+      'Authorization': authHeader
+    }
+  };
+  let headers;
+  let values;
+  let dataToInsertNoHeaders = [];
+  const processingSteps = [
+    {"apiURLType":"Account","apiUrl":`api.octopus.energy/v1/accounts/${sp.myAccount}/`,"formatFunc":accountFormat,"fetchOptions":options},
+  ];
+  try {
+    for (const step of processingSteps ){
+      let apiUrl = step.apiUrl;
+      while (apiUrl) {
+        // Pass both the URL and the options object to the fetch method
+        const response = UrlFetchApp.fetch(apiUrl, step.fetchOptions);
+        const json_data = response.getContentText();
+        const data = JSON.parse(json_data);
+
+        if (!data || data.length === 0 || data.properties.length === 0) {
+          SpreadsheetApp.getUi().alert("API returned no data, empty array or no results.");
+          return;
+        }
+
+        // --- Data processing logic (same as before) ---
+        headers = Object.keys(data.properties[0]).slice(-2);
+//        values = data.properties.map(item => headers.map(header => item[header]));
+        values = Object.values(data.properties[0]).slice(-2);
+//        headers.push("Rate","Cost","Rate Type")
+        dataToInsertNoHeaders.push(...values.flatMap(step.formatFunc));
+        apiUrl = null;
+      }
+    }
+    const substituteHeaders = ["consumption","interval_start","interval_end","Rate","Cost","Rate Type"];
+    const dataToInsert = [substituteHeaders, ...dataToInsertNoHeaders];
+    const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+    const sheet = spreadsheet.getSheetByName('account');
+    sheet.clearContents(); 
+    const range = sheet.getRange(1, 1, dataToInsert.length, substituteHeaders.length);
+    range.setValues(dataToInsert);
+    sheet.autoResizeColumns(1, substituteHeaders.length);
+  } catch (error) {
+    // Error handling might now include 401 Unauthorized errors
+    SpreadsheetApp.getUi().alert(`Failed to fetch data: ${error.message}`);
+  }
+}
 /**
  * New wrapper function fetchDataFromApi that holds start and stop time plus sheet to use
  * The original function (now called fetchDataFromApiStartStop) will accept times as parameters, plus sheet
