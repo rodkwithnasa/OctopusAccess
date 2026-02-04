@@ -222,10 +222,10 @@ const accountFormat = (row,idx) => {
   return row.map(row1 => idx === 0 ? 
   [[row1.mpan,gSheetToDate(Date()),null,0,0,row1.is_export ? "ExportMPAN":"ImportMPAN"],
   [row1.meters[row1.is_export ? 0 :1].serial_number,gSheetToDate(Date()),null,0,0,"eMeter"],
-  ...row1.agreements.map(({tariff_code,valid_from,valid_to})=> [tariff_code,gSheetToDate(valid_from),valid_to ? gSheetToDate(valid_to): null,0,0,row1.is_export ? "exTariff" : "inTariff"] )] :
+  ...row1.agreements.map(({tariff_code:tc,valid_from:vf,valid_to:vt})=> [tc,gSheetToDate(vf),vt ? gSheetToDate(vt): null,0,0,row1.is_export ? "exTariff" : "inTariff"] )] :
   [[row1.mprn,gSheetToDate(Date()),null,0,0,"GasMPRN"],
   [row1.meters[1].serial_number,gSheetToDate(Date()),null,0,0,"gMeter"],
-  ...row1.agreements.map(row3=> [row3.tariff_code,gSheetToDate(row3.valid_from),row3.valid_to ? gSheetToDate(row3.valid_to): null,0,0,"gasTariff"] )]).flat()};
+  ...row1.agreements.map(({tariff_code:tc,valid_from:vf,valid_to:vt})=> [tc,gSheetToDate(vf),vt ? gSheetToDate(vt): null,0,0,"gasTariff"] )]).flat()};
 
 function fetchAccountDataFromApi() {
   // --- CUSTOMIZE THESE THREE VARIABLES ---
