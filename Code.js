@@ -224,7 +224,7 @@ const accountFormat = (row,idx) => {
   [meters[is_export ? 0 :1].serial_number,gSheetToDate(Date()),null,0,0,"eMeter"],
   ...agreements.map(({tariff_code:tc,valid_from:vf,valid_to:vt})=> [tc,gSheetToDate(vf),vt ? gSheetToDate(vt): null,0,0,is_export ? "exTariff" : "inTariff"] )] :
   [[mprn,gSheetToDate(Date()),null,0,0,"GasMPRN"],
-  [meters[1].serial_number,gSheetToDate(Date()),null,0,0,"gMeter"],
+  [meters[0].serial_number,gSheetToDate(Date()),null,0,0,"gMeter"],
   ...agreements.map(({tariff_code:tc,valid_from:vf,valid_to:vt})=> [tc,gSheetToDate(vf),vt ? gSheetToDate(vt): null,0,0,"gasTariff"] )]).flat()};
 
 function fetchAccountDataFromApi() {
@@ -299,7 +299,8 @@ function fetchDataFromApi(){
   const stopTime = new Date(now.getFullYear(),now.getMonth(),now.getDate() - 1,0,-15);
   const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = spreadsheet.getSheetByName('consumption');
-  fetchDataFromApiStartStop(startTime,stopTime,sheet);
+  const lookups = spreadsheet.getSheetByName('lookups');
+  fetchDataFromApiStartStop(startTime,stopTime,sheet,lookups);
 }
 /**
  * Fetches data from an external API using Basic Authorization 
@@ -308,10 +309,16 @@ function fetchDataFromApi(){
  * @param startTime {Date} start time for data fetch from Octopus
  * @param stopTime {Date} stop time for data fetch from Octopus
  * @param sheet {Sheet} the sheet in which to store the results
+ * @param lookups {Sheet} the sheet on which lookup params are stored
  */
-function fetchDataFromApiStartStop(startTime,stopTime,sheet) {
+function fetchDataFromApiStartStop(startTime,stopTime,sheet,lookups) {
   const startTimeT= startTime.toISOString();
   const stopTimeT = stopTime.toISOString();
+  const gasMPRN = lookups.getRange('GasMPRN').getValue();
+  const exportMPAN = lookups.getRange('ExportMPAN').getValue();
+  const importMPAN = lookups.getRange('ImportMPAN').getValue();
+  const eMeter = lookups.getRange('eMeter').getValue();
+  const gMeter = lookups.getRange('gMeter').getValue();
   
   // --- CUSTOMIZE THESE THREE VARIABLES ---
   const ps = PropertiesService.getScriptProperties();
@@ -337,9 +344,9 @@ function fetchDataFromApiStartStop(startTime,stopTime,sheet) {
   let dataToInsert;
   let dataToInsertNoHeaders = [];
   const processingSteps = [
-    {"apiURLType":"ElecImport","apiUrl":`api.octopus.energy/v1/electricity-meter-points/${sp.eIMpan}/meters/${sp.eMeter}/consumption/?period_from=${startTimeT}${stopTimeT !== null ? `&period_to=${stopTimeT}`:``}&order_by=period`,"formatFunc":elecImportFormat,"fetchOptions":options},
-    {"apiURLType":"Gas","apiUrl":`api.octopus.energy/v1/gas-meter-points/${sp.gMPRN}/meters/${sp.gMeter}/consumption/?period_from=${startTimeT}${stopTimeT !== null ? `&period_to=${stopTimeT}`:``}&order_by=period`,"formatFunc":gasFormat,"fetchOptions":options},
-    {"apiURLType":"Export","apiUrl":`api.octopus.energy/v1/electricity-meter-points/${sp.eEMpan}/meters/${sp.eMeter}/consumption/?period_from=${startTimeT}${stopTimeT !== null ? `&period_to=${stopTimeT}`:``}&order_by=period`,"formatFunc":exportFormat,"fetchOptions":options}
+    {"apiURLType":"ElecImport","apiUrl":`api.octopus.energy/v1/electricity-meter-points/${importMPAN}/meters/${eMeter}/consumption/?period_from=${startTimeT}${stopTimeT !== null ? `&period_to=${stopTimeT}`:``}&order_by=period`,"formatFunc":elecImportFormat,"fetchOptions":options},
+    {"apiURLType":"Gas","apiUrl":`api.octopus.energy/v1/gas-meter-points/${gasMPRN}/meters/${gMeter}/consumption/?period_from=${startTimeT}${stopTimeT !== null ? `&period_to=${stopTimeT}`:``}&order_by=period`,"formatFunc":gasFormat,"fetchOptions":options},
+    {"apiURLType":"Export","apiUrl":`api.octopus.energy/v1/electricity-meter-points/${exportMPAN}/meters/${eMeter}/consumption/?period_from=${startTimeT}${stopTimeT !== null ? `&period_to=${stopTimeT}`:``}&order_by=period`,"formatFunc":exportFormat,"fetchOptions":options}
   ]
 
   try {
@@ -638,7 +645,8 @@ function fetchAllDataFromApi(){
   const wsheet = spreadsheet.getSheetByName('Weather');
   testGetWeatherStartStop(startTime,stopTime,wsheet);
   const sheet = spreadsheet.getSheetByName('consumption');
-  fetchDataFromApiStartStop(startTime,stopTime,sheet);
+  const lookups = spreadsheet.getSheetByName('lookups');
+  fetchDataFromApiStartStop(startTime,stopTime,sheet,lookups);
 }
 class octopusBill {
 
