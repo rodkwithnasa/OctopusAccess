@@ -220,10 +220,12 @@ const calorificFormat = row => {
 		  
 const accountFormat = (row,idx) => {
   return row.map(row1 => idx === 0 ? 
-  [[row1.mpan,gSheetToDate(Date()),0,0,0,row1.is_export ? "ExportMPAN":"ImportMPAN"],
-  [row1.meters[row1.is_export ? 0 :1].serial_number,gSheetToDate(Date()),0,0,0,"eMeter"]] :
-  [[row1.mprn,gSheetToDate(Date()),0,0,0,"GasMPRN"],
-  [row1.meters[1].serial_number,gSheetToDate(Date()),0,0,0,"gMeter"]]).flat()};
+  [[row1.mpan,gSheetToDate(Date()),null,0,0,row1.is_export ? "ExportMPAN":"ImportMPAN"],
+  [row1.meters[row1.is_export ? 0 :1].serial_number,gSheetToDate(Date()),null,0,0,"eMeter"],
+  ...row1.agreements.map(row2=> [row2.tariff_code,gSheetToDate(row2.valid_from),row2.valid_to ? gSheetToDate(row2.valid_to): null,0,0,row1.is_export ? "exTariff" : "inTariff"] )] :
+  [[row1.mprn,gSheetToDate(Date()),null,0,0,"GasMPRN"],
+  [row1.meters[1].serial_number,gSheetToDate(Date()),null,0,0,"gMeter"],
+  ...row1.agreements.map(row3=> [row3.tariff_code,gSheetToDate(row3.valid_from),row3.valid_to ? gSheetToDate(row3.valid_to): null,0,0,"gasTariff"] )]).flat()};
 
 function fetchAccountDataFromApi() {
   // --- CUSTOMIZE THESE THREE VARIABLES ---
