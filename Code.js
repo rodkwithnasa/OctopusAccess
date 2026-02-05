@@ -499,7 +499,7 @@ function fetchTariffDataFromApiStartStop(startTime,stopTime,sheet) {
   // --- CUSTOMIZE THESE THREE VARIABLES ---
   const ps = PropertiesService.getScriptProperties();
   const sp = ps.getProperties();
-  const {currInProduct} = myLookups;
+  const {currInProduct,currInTariff,currGasProduct,currGasTariff,currExProduct,currExTariff} = myLookups;
 
   const apiUsername = sp.api_usernameProp; 
   const apiPassword = ''; 
@@ -522,12 +522,12 @@ function fetchTariffDataFromApiStartStop(startTime,stopTime,sheet) {
   let dataToInsertNoHeaders = [];
 
   const processingSteps = [
-    {"apiURLType":"ElecImport","apiUrl":`api.octopus.energy/v1/products/${currInProduct}/electricity-tariffs/${sp.elecImport_tariff}/standard-unit-rates/?period_from=${startTimeT}${stopTimeT !== null ? `&period_to=${stopTimeT}`:``}&order_by=period`,"formatFunc":elecImportTariffFormat,"fetchOptions":options},
-    {"apiURLType":"ElecImportSt","apiUrl":`api.octopus.energy/v1/products/${currInProduct}/electricity-tariffs/${sp.elecImport_tariff}/standing-charges/?period_from=${startTimeT}${stopTimeT !== null ? `&period_to=${stopTimeT}`:``}&order_by=period`,"formatFunc":elecImportTariffSTFormat,"fetchOptions":options},
-    {"apiURLType":"Gas","apiUrl":`api.octopus.energy/v1/products/${sp.gas_product}/gas-tariffs/${sp.gas_tariff}/standard-unit-rates/?period_from=${startTimeT}${stopTimeT !== null ? `&period_to=${stopTimeT}`:``}&order_by=period`,"formatFunc":gasTariffFormat,"fetchOptions":options},
-    {"apiURLType":"GasSt","apiUrl":`api.octopus.energy/v1/products/${sp.gas_product}/gas-tariffs/${sp.gas_tariff}/standing-charges/?period_from=${startTimeT}${stopTimeT !== null ? `&period_to=${stopTimeT}`:``}&order_by=period`,"formatFunc":gasTariffSTFormat,"fetchOptions":options},
-    {"apiURLType":"Export","apiUrl":`api.octopus.energy/v1/products/${sp.elecExport_product}/electricity-tariffs/${sp.elecExport_tariff}/standard-unit-rates/?period_from=${startTimeT}${stopTimeT !== null ? `&period_to=${stopTimeT}`:``}&order_by=period`,"formatFunc":elecExportTariffFormat,"fetchOptions":options},
-    {"apiURLType":"ExportSt","apiUrl":`api.octopus.energy/v1/products/${sp.elecExport_product}/electricity-tariffs/${sp.elecExport_tariff}/standing-charges/?period_from=${startTimeT}${stopTimeT !== null ? `&period_to=${stopTimeT}`:``}&order_by=period`,"formatFunc":elecExportTariffSTFormat,"fetchOptions":options},
+    {"apiURLType":"ElecImport","apiUrl":`api.octopus.energy/v1/products/${currInProduct}/electricity-tariffs/${currInTariff}/standard-unit-rates/?period_from=${startTimeT}${stopTimeT !== null ? `&period_to=${stopTimeT}`:``}&order_by=period`,"formatFunc":elecImportTariffFormat,"fetchOptions":options},
+    {"apiURLType":"ElecImportSt","apiUrl":`api.octopus.energy/v1/products/${currInProduct}/electricity-tariffs/${currInTariff}/standing-charges/?period_from=${startTimeT}${stopTimeT !== null ? `&period_to=${stopTimeT}`:``}&order_by=period`,"formatFunc":elecImportTariffSTFormat,"fetchOptions":options},
+    {"apiURLType":"Gas","apiUrl":`api.octopus.energy/v1/products/${currGasProduct}/gas-tariffs/${currGasTariff}/standard-unit-rates/?period_from=${startTimeT}${stopTimeT !== null ? `&period_to=${stopTimeT}`:``}&order_by=period`,"formatFunc":gasTariffFormat,"fetchOptions":options},
+    {"apiURLType":"GasSt","apiUrl":`api.octopus.energy/v1/products/${currGasProduct}/gas-tariffs/${currGasTariff}/standing-charges/?period_from=${startTimeT}${stopTimeT !== null ? `&period_to=${stopTimeT}`:``}&order_by=period`,"formatFunc":gasTariffSTFormat,"fetchOptions":options},
+    {"apiURLType":"Export","apiUrl":`api.octopus.energy/v1/products/${currExProduct}/electricity-tariffs/${currExTariff}/standard-unit-rates/?period_from=${startTimeT}${stopTimeT !== null ? `&period_to=${stopTimeT}`:``}&order_by=period`,"formatFunc":elecExportTariffFormat,"fetchOptions":options},
+    {"apiURLType":"ExportSt","apiUrl":`api.octopus.energy/v1/products/${currExProduct}/electricity-tariffs/${currExTariff}/standing-charges/?period_from=${startTimeT}${stopTimeT !== null ? `&period_to=${stopTimeT}`:``}&order_by=period`,"formatFunc":elecExportTariffSTFormat,"fetchOptions":options},
   ]
 
   try {
@@ -638,13 +638,14 @@ function testGetWeatherStartStop(startTime,stopTime,sheet){
 }
 /**
  * New wrapper function fetchAllDataFromApi that holds start and stop time and sheets to update, and calls
- * all four data getting functions from the various APIs.
+ * all data getting functions from the various APIs.
  */
 function fetchAllDataFromApi(){
   const now = new Date();
   const startTime = new Date(now.getFullYear(),now.getMonth(),now.getDate() - 14);
   const stopTime = new Date(now.getFullYear(),now.getMonth(),now.getDate() - 1,0,-15);
   const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  fetchAccountDataFromApi();
   const tsheet = spreadsheet.getSheetByName('tariffs');
   fetchTariffDataFromApiStartStop(startTime,stopTime,tsheet);
   const csheet = spreadsheet.getSheetByName('CF');
