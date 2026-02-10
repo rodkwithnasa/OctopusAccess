@@ -685,19 +685,19 @@ function makeBill(billName,billStart,billStop) {
 		get billName() {
 			return myBillName;
 		},
-		getBillStart() {
+		get billStart() {
 			return myBillStart;
 		},
-		getBillStop () {
+		get billStop () {
 			return myBillStop;
 		},
 		set billName(updatedBillName){
 			myBillName = updatedBillName;
 		},
-		setBillStart(updatedBillStart){
+		set billStart(updatedBillStart){
 			myBillStart = parseDMY(updatedBillStart);
 		},
-		setBillStop(updatedBillStop){
+		set billStop(updatedBillStop){
 			myBillStop = parseDMY(updatedBillStop);
 		}
 	}
@@ -705,11 +705,11 @@ function makeBill(billName,billStart,billStop) {
 
 function tryMakeBill() {
 	const my1stBill = makeBill("H 1st Bill","1/1/2026","7/1/2026");
-	console.log(`name = ${my1stBill.billName},start = ${my1stBill.getBillStart()},stop = ${my1stBill.getBillStop()}`);
+	console.log(`name = ${my1stBill.billName},start = ${my1stBill.billStart},stop = ${my1stBill.billStop}`);
 	my1stBill.billName = "H new name";
-	console.log(`name = ${my1stBill.billName},start = ${my1stBill.getBillStart()},stop = ${my1stBill.getBillStop()}`);
+	console.log(`name = ${my1stBill.billName},start = ${my1stBill.billStart},stop = ${my1stBill.billStop}`);
 	const my2ndBill = makeBill("H 2nd Bill","7/1/2026","7/2/2026");
-	my1stBill.setBillStart("4/1/2026");
-	console.log(`name = ${my1stBill.billName},start = ${my1stBill.getBillStart()},stop = ${my1stBill.getBillStop()}`);
-	console.log(`name = ${my2ndBill.billName},start = ${my2ndBill.getBillStart()},stop = ${my2ndBill.getBillStop()}`);
+	my1stBill.billStart = "4/1/2026";
+	console.log(`name = ${my1stBill.billName},start = ${my1stBill.billStart},stop = ${my1stBill.billStop}`);
+	console.log(`name = ${my2ndBill.billName},start = ${my2ndBill.billStart},stop = ${my2ndBill.billStop}`);
 }
