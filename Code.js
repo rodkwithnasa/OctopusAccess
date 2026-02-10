@@ -217,6 +217,89 @@ const calorificFormat = row => {
             const outputRows = [formattedRow];
             return outputRows;
           }
+		  
+const accountFormat = (row,idx) => {
+  return row.map(({mpan,is_export,meters,agreements,mprn}) => idx === 0 ? 
+  [[mpan,gSheetToDate(Date()),null,0,0,is_export ? "ExportMPAN":"ImportMPAN"],
+  [meters[is_export ? 0 :1].serial_number,gSheetToDate(Date()),null,0,0,"eMeter"],
+  ...agreements.map(({tariff_code:tc,valid_from:vf,valid_to:vt})=> [tc,gSheetToDate(vf),vt ? gSheetToDate(vt): null,0,0,is_export ? "exTariff" : "inTariff"] )] :
+  [[mprn,gSheetToDate(Date()),null,0,0,"GasMPRN"],
+  [meters[0].serial_number,gSheetToDate(Date()),null,0,0,"gMeter"],
+  ...agreements.map(({tariff_code:tc,valid_from:vf,valid_to:vt})=> [tc,gSheetToDate(vf),vt ? gSheetToDate(vt): null,0,0,"gasTariff"] )]).flat()};
+
+function fetchAccountDataFromApi() {
+  // --- CUSTOMIZE THESE THREE VARIABLES ---
+  const ps = PropertiesService.getScriptProperties();
+  const sp = ps.getProperties();
+
+  const apiUsername = sp.api_usernameProp;
+  const apiPassword = ''; 
+  // ---------------------------------------
+  // Combine credentials into the required Basic Auth format
+  const credentials = apiUsername + ':' + apiPassword;
+  // Use the built-in Apps Script function to Base64 encode the credentials
+  const encodedCredentials = Utilities.base64Encode(credentials);
+  const authHeader = 'Basic ' + encodedCredentials;
+
+  // Define the options object for UrlFetchApp.fetch()
+  const options = {
+    'headers': {
+      'Authorization': authHeader
+    }
+  };
+  let headers;
+  let values;
+  let dataToInsertNoHeaders = [];
+  const processingSteps = [
+    {"apiURLType":"Account","apiUrl":`api.octopus.energy/v1/accounts/${sp.myAccount}/`,"formatFunc":accountFormat,"fetchOptions":options},
+  ];
+  try {
+    for (const step of processingSteps ){
+      let apiUrl = step.apiUrl;
+      while (apiUrl) {
+        // Pass both the URL and the options object to the fetch method
+        const response = UrlFetchApp.fetch(apiUrl, step.fetchOptions);
+        const json_data = response.getContentText();
+        const data = JSON.parse(json_data);
+
+        if (!data || data.length === 0 || data.properties.length === 0) {
+          SpreadsheetApp.getUi().alert("API returned no data, empty array or no results.");
+          return;
+        }
+
+        // --- Data processing logic (same as before) ---
+        headers = Object.keys(data.properties[0]).slice(-2);
+//        values = data.properties.map(item => headers.map(header => item[header]));
+        values = Object.values(data.properties[0]).slice(-2);
+//        headers.push("Rate","Cost","Rate Type")
+        dataToInsertNoHeaders.push(...values.flatMap(step.formatFunc));
+        apiUrl = null;
+      }
+    }
+    const substituteHeaders = ["consumption","interval_start","interval_end","Rate","Cost","Rate Type"];
+    const dataToInsert = [substituteHeaders, ...dataToInsertNoHeaders];
+    const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+    const sheet = spreadsheet.getSheetByName('account');
+    sheet.clearContents(); 
+    const range = sheet.getRange(1, 1, dataToInsert.length, substituteHeaders.length);
+    range.setValues(dataToInsert);
+    sheet.autoResizeColumns(1, substituteHeaders.length);
+  } catch (error) {
+    // Error handling might now include 401 Unauthorized errors
+    SpreadsheetApp.getUi().alert(`Failed to fetch data: ${error.message}`);
+  }
+}
+/**
+ * Gets object with keys corresponding to named lookup values
+ * @returns Object keys and values of lookups
+ */
+const myLookups = (function () {
+  const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  const lookups = spreadsheet.getSheetByName('lookups');
+  const myRanges = lookups.getNamedRanges();
+  const myRangeNames = myRanges.map(r => [ r.getName(), r.getRange().getValue()]);
+  return Object.fromEntries(myRangeNames);
+})();
 /**
  * New wrapper function fetchDataFromApi that holds start and stop time plus sheet to use
  * The original function (now called fetchDataFromApiStartStop) will accept times as parameters, plus sheet
@@ -227,7 +310,8 @@ function fetchDataFromApi(){
   const stopTime = new Date(now.getFullYear(),now.getMonth(),now.getDate() - 1,0,-15);
   const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = spreadsheet.getSheetByName('consumption');
-  fetchDataFromApiStartStop(startTime,stopTime,sheet);
+  const lookups = spreadsheet.getSheetByName('lookups');
+  fetchDataFromApiStartStop(startTime,stopTime,sheet,lookups);
 }
 /**
  * Fetches data from an external API using Basic Authorization 
@@ -240,6 +324,7 @@ function fetchDataFromApi(){
 function fetchDataFromApiStartStop(startTime,stopTime,sheet) {
   const startTimeT= startTime.toISOString();
   const stopTimeT = stopTime.toISOString();
+  const {GasMPRN:gasMPRN,ExportMPAN:exportMPAN,ImportMPAN:importMPAN,eMeter,gMeter} = myLookups;
   
   // --- CUSTOMIZE THESE THREE VARIABLES ---
   const ps = PropertiesService.getScriptProperties();
@@ -265,9 +350,9 @@ function fetchDataFromApiStartStop(startTime,stopTime,sheet) {
   let dataToInsert;
   let dataToInsertNoHeaders = [];
   const processingSteps = [
-    {"apiURLType":"ElecImport","apiUrl":`api.octopus.energy/v1/electricity-meter-points/${sp.eIMpan}/meters/${sp.eMeter}/consumption/?period_from=${startTimeT}${stopTimeT !== null ? `&period_to=${stopTimeT}`:``}&order_by=period`,"formatFunc":elecImportFormat,"fetchOptions":options},
-    {"apiURLType":"Gas","apiUrl":`api.octopus.energy/v1/gas-meter-points/${sp.gMPRN}/meters/${sp.gMeter}/consumption/?period_from=${startTimeT}${stopTimeT !== null ? `&period_to=${stopTimeT}`:``}&order_by=period`,"formatFunc":gasFormat,"fetchOptions":options},
-    {"apiURLType":"Export","apiUrl":`api.octopus.energy/v1/electricity-meter-points/${sp.eEMpan}/meters/${sp.eMeter}/consumption/?period_from=${startTimeT}${stopTimeT !== null ? `&period_to=${stopTimeT}`:``}&order_by=period`,"formatFunc":exportFormat,"fetchOptions":options}
+    {"apiURLType":"ElecImport","apiUrl":`api.octopus.energy/v1/electricity-meter-points/${importMPAN}/meters/${eMeter}/consumption/?period_from=${startTimeT}${stopTimeT !== null ? `&period_to=${stopTimeT}`:``}&order_by=period`,"formatFunc":elecImportFormat,"fetchOptions":options},
+    {"apiURLType":"Gas","apiUrl":`api.octopus.energy/v1/gas-meter-points/${gasMPRN}/meters/${gMeter}/consumption/?period_from=${startTimeT}${stopTimeT !== null ? `&period_to=${stopTimeT}`:``}&order_by=period`,"formatFunc":gasFormat,"fetchOptions":options},
+    {"apiURLType":"Export","apiUrl":`api.octopus.energy/v1/electricity-meter-points/${exportMPAN}/meters/${eMeter}/consumption/?period_from=${startTimeT}${stopTimeT !== null ? `&period_to=${stopTimeT}`:``}&order_by=period`,"formatFunc":exportFormat,"fetchOptions":options}
   ]
 
   try {
@@ -414,6 +499,7 @@ function fetchTariffDataFromApiStartStop(startTime,stopTime,sheet) {
   // --- CUSTOMIZE THESE THREE VARIABLES ---
   const ps = PropertiesService.getScriptProperties();
   const sp = ps.getProperties();
+  const {currInProduct,currInTariff,currGasProduct,currGasTariff,currExProduct,currExTariff} = myLookups;
 
   const apiUsername = sp.api_usernameProp; 
   const apiPassword = ''; 
@@ -436,12 +522,12 @@ function fetchTariffDataFromApiStartStop(startTime,stopTime,sheet) {
   let dataToInsertNoHeaders = [];
 
   const processingSteps = [
-    {"apiURLType":"ElecImport","apiUrl":`api.octopus.energy/v1/products/${sp.elecImport_product}/electricity-tariffs/${sp.elecImport_tariff}/standard-unit-rates/?period_from=${startTimeT}${stopTimeT !== null ? `&period_to=${stopTimeT}`:``}&order_by=period`,"formatFunc":elecImportTariffFormat,"fetchOptions":options},
-    {"apiURLType":"ElecImportSt","apiUrl":`api.octopus.energy/v1/products/${sp.elecImport_product}/electricity-tariffs/${sp.elecImport_tariff}/standing-charges/?period_from=${startTimeT}${stopTimeT !== null ? `&period_to=${stopTimeT}`:``}&order_by=period`,"formatFunc":elecImportTariffSTFormat,"fetchOptions":options},
-    {"apiURLType":"Gas","apiUrl":`api.octopus.energy/v1/products/${sp.gas_product}/gas-tariffs/${sp.gas_tariff}/standard-unit-rates/?period_from=${startTimeT}${stopTimeT !== null ? `&period_to=${stopTimeT}`:``}&order_by=period`,"formatFunc":gasTariffFormat,"fetchOptions":options},
-    {"apiURLType":"GasSt","apiUrl":`api.octopus.energy/v1/products/${sp.gas_product}/gas-tariffs/${sp.gas_tariff}/standing-charges/?period_from=${startTimeT}${stopTimeT !== null ? `&period_to=${stopTimeT}`:``}&order_by=period`,"formatFunc":gasTariffSTFormat,"fetchOptions":options},
-    {"apiURLType":"Export","apiUrl":`api.octopus.energy/v1/products/${sp.elecExport_product}/electricity-tariffs/${sp.elecExport_tariff}/standard-unit-rates/?period_from=${startTimeT}${stopTimeT !== null ? `&period_to=${stopTimeT}`:``}&order_by=period`,"formatFunc":elecExportTariffFormat,"fetchOptions":options},
-    {"apiURLType":"ExportSt","apiUrl":`api.octopus.energy/v1/products/${sp.elecExport_product}/electricity-tariffs/${sp.elecExport_tariff}/standing-charges/?period_from=${startTimeT}${stopTimeT !== null ? `&period_to=${stopTimeT}`:``}&order_by=period`,"formatFunc":elecExportTariffSTFormat,"fetchOptions":options},
+    {"apiURLType":"ElecImport","apiUrl":`api.octopus.energy/v1/products/${currInProduct}/electricity-tariffs/${currInTariff}/standard-unit-rates/?period_from=${startTimeT}${stopTimeT !== null ? `&period_to=${stopTimeT}`:``}&order_by=period`,"formatFunc":elecImportTariffFormat,"fetchOptions":options},
+    {"apiURLType":"ElecImportSt","apiUrl":`api.octopus.energy/v1/products/${currInProduct}/electricity-tariffs/${currInTariff}/standing-charges/?period_from=${startTimeT}${stopTimeT !== null ? `&period_to=${stopTimeT}`:``}&order_by=period`,"formatFunc":elecImportTariffSTFormat,"fetchOptions":options},
+    {"apiURLType":"Gas","apiUrl":`api.octopus.energy/v1/products/${currGasProduct}/gas-tariffs/${currGasTariff}/standard-unit-rates/?period_from=${startTimeT}${stopTimeT !== null ? `&period_to=${stopTimeT}`:``}&order_by=period`,"formatFunc":gasTariffFormat,"fetchOptions":options},
+    {"apiURLType":"GasSt","apiUrl":`api.octopus.energy/v1/products/${currGasProduct}/gas-tariffs/${currGasTariff}/standing-charges/?period_from=${startTimeT}${stopTimeT !== null ? `&period_to=${stopTimeT}`:``}&order_by=period`,"formatFunc":gasTariffSTFormat,"fetchOptions":options},
+    {"apiURLType":"Export","apiUrl":`api.octopus.energy/v1/products/${currExProduct}/electricity-tariffs/${currExTariff}/standard-unit-rates/?period_from=${startTimeT}${stopTimeT !== null ? `&period_to=${stopTimeT}`:``}&order_by=period`,"formatFunc":elecExportTariffFormat,"fetchOptions":options},
+    {"apiURLType":"ExportSt","apiUrl":`api.octopus.energy/v1/products/${currExProduct}/electricity-tariffs/${currExTariff}/standing-charges/?period_from=${startTimeT}${stopTimeT !== null ? `&period_to=${stopTimeT}`:``}&order_by=period`,"formatFunc":elecExportTariffSTFormat,"fetchOptions":options},
   ]
 
   try {
@@ -558,13 +644,14 @@ function testGetWeatherStartStop(startTime, stopTime, sheet) {
 }
 /**
  * New wrapper function fetchAllDataFromApi that holds start and stop time and sheets to update, and calls
- * all four data getting functions from the various APIs.
+ * all data getting functions from the various APIs.
  */
 function fetchAllDataFromApi(){
   const now = new Date();
   const startTime = new Date(now.getFullYear(),now.getMonth(),now.getDate() - 14);
   const stopTime = new Date(now.getFullYear(),now.getMonth(),now.getDate() - 1,0,-15);
   const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  fetchAccountDataFromApi();
   const tsheet = spreadsheet.getSheetByName('tariffs');
   fetchTariffDataFromApiStartStop(startTime,stopTime,tsheet);
   const csheet = spreadsheet.getSheetByName('CF');
