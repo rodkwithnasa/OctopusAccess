@@ -645,8 +645,8 @@ function testGetWeatherStartStop(startTime,stopTime,sheet){
  */
 function fetchAllDataFromApi(){
   const now = new Date();
-  const startTime = new Date(now.getFullYear(),now.getMonth(),now.getDate() - 14);
-  const stopTime = new Date(now.getFullYear(),now.getMonth(),now.getDate() - 1,0,-15);
+  const startTime = new Date(now.getFullYear(),now.getMonth(),now.getDate() - 33);
+  const stopTime = new Date(now.getFullYear(),now.getMonth(),now.getDate() - 2,0,-15);
   const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
   fetchAccountDataFromApi();
   const tsheet = spreadsheet.getSheetByName('tariffs');
