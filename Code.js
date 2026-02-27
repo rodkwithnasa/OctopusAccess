@@ -125,7 +125,8 @@ const gasFormat = row => {
             return outputRows;
           }
 const eETariffCode = 'ElecExportTariff';
-const eEqueryString = `query(myTable,"SELECT Col1 where Col6 = '${eETariffCode}' and ( Col3 is null and datetime '" & TEXT(R[0]C[-2], "yyyy-mm-dd HH:mm:ss.000") & "' >= Col2)")*-1/100`;
+//const eEqueryString = `query(myTable,"SELECT Col1 where Col6 = '${eETariffCode}' and ( Col3 is null and datetime '" & TEXT(R[0]C[-2], "yyyy-mm-dd HH:mm:ss.000") & "' >= Col2)")*-1/100`;
+const eEqueryString = `query(myTable,"SELECT Col1 where Col6 = '${eETariffCode}' and ((datetime '" & TEXT(R[0]C[-2], "yyyy-mm-dd HH:mm:ss.000") & "' < Col3 and datetime '" & TEXT(R[0]C[-2], "yyyy-mm-dd HH:mm:ss.000") & "' >= Col2) or ( Col3 is null and datetime '" & TEXT(R[0]C[-2], "yyyy-mm-dd HH:mm:ss.000") & "' >= Col2))")/100`;
 /**
  * Returns the formatted rows for Export
  * @param row
