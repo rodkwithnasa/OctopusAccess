@@ -106,6 +106,8 @@ const elecImportFormat = row => {
 const gasTariffCode = 'GasTariff';
 const dd = 'DIRECT_DEBIT';
 const gasQueryString = `query(myTable,"SELECT Col1 where Col6 = '${gasTariffCode}' and Col4 = '${dd}' and ((datetime '" & TEXT(R[0]C[-2], "yyyy-mm-dd HH:mm:ss.000") & "' < Col3 and datetime '" & TEXT(R[0]C[-2], "yyyy-mm-dd HH:mm:ss.000") & "' >= Col2) or ( Col3 is null and datetime '" & TEXT(R[0]C[-2], "yyyy-mm-dd HH:mm:ss.000") & "' >= Col2))")/100`;
+const avCalValueNew = `rounddown(query(query(Table3,"SELECT D,AVG(A) GROUP BY D"),"SELECT Col2 WHERE Col1 =" & R[0]C[-1],0),1)`;
+const gasCostString = `(((R[0]C[-4] * 1.02264 * ${avCalValueNew})/3.6)*R[0]C[-1])`;
 const gasStTariffCode = 'GasTariffST';
 const gasStQueryString = `query(myTable,"SELECT Col1 where Col6 = '${gasStTariffCode}' and Col4 = '${dd}' and ((datetime '" & TEXT(R[0]C[-2], "yyyy-mm-dd HH:mm:ss.000") & "' < Col3 and datetime '" & TEXT(R[0]C[-2], "yyyy-mm-dd HH:mm:ss.000") & "' >= Col2) or ( Col3 is null and datetime '" & TEXT(R[0]C[-2], "yyyy-mm-dd HH:mm:ss.000") & "' >= Col2))")/100`;
 /**
@@ -114,7 +116,7 @@ const gasStQueryString = `query(myTable,"SELECT Col1 where Col6 = '${gasStTariff
  * @returns formatted row
  */
 const gasFormat = row => {
-            const formattedRow = [row[0],gSheetToDate(row[1]),gSheetToDate(row[2]),gasQueryString,'(((R[0]C[-4] * 1.02264 * AvCalValueNew)/3.6)*R[0]C[-1])',"Gas"];
+            const formattedRow = [row[0],gSheetToDate(row[1]),gSheetToDate(row[2]),gasQueryString,gasCostString,"Gas"];
             const outputRows = [formattedRow];
             if (checkDayStart(row[1])) {
               const extraRow = [1,gSheetToDate(row[1]),gSheetToDate(row[1]),gasStQueryString,'(R[0]C[-4]*R[0]C[-1])',"GStanding"];
@@ -123,7 +125,8 @@ const gasFormat = row => {
             return outputRows;
           }
 const eETariffCode = 'ElecExportTariff';
-const eEqueryString = `query(myTable,"SELECT Col1 where Col6 = '${eETariffCode}' and ( Col3 is null and datetime '" & TEXT(R[0]C[-2], "yyyy-mm-dd HH:mm:ss.000") & "' >= Col2)")*-1/100`;
+//const eEqueryString = `query(myTable,"SELECT Col1 where Col6 = '${eETariffCode}' and ( Col3 is null and datetime '" & TEXT(R[0]C[-2], "yyyy-mm-dd HH:mm:ss.000") & "' >= Col2)")*-1/100`;
+const eEqueryString = `query(myTable,"SELECT Col1 where Col6 = '${eETariffCode}' and ((datetime '" & TEXT(R[0]C[-2], "yyyy-mm-dd HH:mm:ss.000") & "' < Col3 and datetime '" & TEXT(R[0]C[-2], "yyyy-mm-dd HH:mm:ss.000") & "' >= Col2) or ( Col3 is null and datetime '" & TEXT(R[0]C[-2], "yyyy-mm-dd HH:mm:ss.000") & "' >= Col2))")*-1/100`;
 /**
  * Returns the formatted rows for Export
  * @param row
@@ -206,6 +209,7 @@ function parseDMY(value) {
         y = parseInt(date[2], 10);
     return (Number.isNaN(d) || Number.isNaN(m)|| Number.isNaN(y))?  null : new Date(y, m - 1, d);
 }
+const cfQuery = `=${gasQueryString}`;
 /**
  * Returns the formatted rows for calorific value
  * @param row
@@ -213,7 +217,7 @@ function parseDMY(value) {
  */
 const calorificFormat = row => {
             const event = parseDMY(row[2]);
-            const formattedRow = [row[0],gSheetToDate(event.toISOString()),gSheetToDate(event.toISOString()),0,0,row[5]];
+            const formattedRow = [row[0],gSheetToDate(event.toISOString()),gSheetToDate(event.toISOString()),cfQuery,0,row[5]];
             const outputRows = [formattedRow];
             return outputRows;
           }
@@ -642,8 +646,8 @@ function testGetWeatherStartStop(startTime,stopTime,sheet){
  */
 function fetchAllDataFromApi(){
   const now = new Date();
-  const startTime = new Date(now.getFullYear(),now.getMonth(),now.getDate() - 14);
-  const stopTime = new Date(now.getFullYear(),now.getMonth(),now.getDate() - 1,0,-15);
+  const startTime = new Date(now.getFullYear(),now.getMonth(),now.getDate() - 33);
+  const stopTime = new Date(now.getFullYear(),now.getMonth(),now.getDate() - 2,0,-15);
   const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
   fetchAccountDataFromApi();
   const tsheet = spreadsheet.getSheetByName('tariffs');
@@ -674,4 +678,42 @@ function tryBill () {
   const extract = myBill._billName;
   const temp = 5;
 
+}
+
+function makeBill(billName,billStart,billStop) {
+	let myBillName = billName;
+	let myBillStart = parseDMY(billStart);
+	let myBillStop = parseDMY(billStop);
+	
+	return {
+		get billName() {
+			return myBillName;
+		},
+		get billStart() {
+			return myBillStart;
+		},
+		get billStop () {
+			return myBillStop;
+		},
+		set billName(updatedBillName){
+			myBillName = updatedBillName;
+		},
+		set billStart(updatedBillStart){
+			myBillStart = parseDMY(updatedBillStart);
+		},
+		set billStop(updatedBillStop){
+			myBillStop = parseDMY(updatedBillStop);
+		}
+	}
+}
+
+function tryMakeBill() {
+	const my1stBill = makeBill("H 1st Bill","1/1/2026","7/1/2026");
+	console.log(`name = ${my1stBill.billName},start = ${my1stBill.billStart},stop = ${my1stBill.billStop}`);
+	my1stBill.billName = "H new name";
+	console.log(`name = ${my1stBill.billName},start = ${my1stBill.billStart},stop = ${my1stBill.billStop}`);
+	const my2ndBill = makeBill("H 2nd Bill","7/1/2026","7/2/2026");
+	my1stBill.billStart = "4/1/2026";
+	console.log(`name = ${my1stBill.billName},start = ${my1stBill.billStart},stop = ${my1stBill.billStop}`);
+	console.log(`name = ${my2ndBill.billName},start = ${my2ndBill.billStart},stop = ${my2ndBill.billStop}`);
 }
