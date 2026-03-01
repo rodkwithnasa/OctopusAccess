@@ -108,6 +108,7 @@ const dd = 'DIRECT_DEBIT';
 const gasQueryString = `query(myTable,"SELECT Col1 where Col6 = '${gasTariffCode}' and Col4 = '${dd}' and ((datetime '" & TEXT(R[0]C[-2], "yyyy-mm-dd HH:mm:ss.000") & "' < Col3 and datetime '" & TEXT(R[0]C[-2], "yyyy-mm-dd HH:mm:ss.000") & "' >= Col2) or ( Col3 is null and datetime '" & TEXT(R[0]C[-2], "yyyy-mm-dd HH:mm:ss.000") & "' >= Col2))")/100`;
 const avCalValueNew = `rounddown(query(query(Table3,"SELECT D,AVG(A) GROUP BY D"),"SELECT Col2 WHERE Col1 =" & R[0]C[-1],0),1)`;
 const gasCostString = `(((R[0]C[-4] * 1.02264 * ${avCalValueNew})/3.6)*R[0]C[-1])`;
+// const gasCostString = `${avCalValueNew}`;
 const gasStTariffCode = 'GasTariffST';
 const gasStQueryString = `query(myTable,"SELECT Col1 where Col6 = '${gasStTariffCode}' and Col4 = '${dd}' and ((datetime '" & TEXT(R[0]C[-2], "yyyy-mm-dd HH:mm:ss.000") & "' < Col3 and datetime '" & TEXT(R[0]C[-2], "yyyy-mm-dd HH:mm:ss.000") & "' >= Col2) or ( Col3 is null and datetime '" & TEXT(R[0]C[-2], "yyyy-mm-dd HH:mm:ss.000") & "' >= Col2))")/100`;
 /**
@@ -684,6 +685,7 @@ function makeBill(billName,billStart,billStop) {
 	let myBillName = billName;
 	let myBillStart = parseDMY(billStart);
 	let myBillStop = parseDMY(billStop);
+	myBillStop = new Date(myBillStop.getFullYear(),myBillStop.getMonth(),myBillStop.getDate(),0,-15);
 	
 	return {
 		get billName() {
@@ -703,17 +705,28 @@ function makeBill(billName,billStart,billStop) {
 		},
 		set billStop(updatedBillStop){
 			myBillStop = parseDMY(updatedBillStop);
+			myBillStop = new Date(updatedBillStop.getFullYear(),updatedBillStop.getMonth(),updatedBillStop.getDate(),0,-15);
 		}
 	}
 }
 
 function tryMakeBill() {
-	const my1stBill = makeBill("H 1st Bill","1/1/2026","7/1/2026");
+//	const my1stBill = makeBill("H 1st Bill","12/1/2026","24/1/2026");
+//	const my1stBill = makeBill("H 1st Bill","24/1/2026","25/1/2026");
+//	const my1stBill = makeBill("H 1st Bill","25/1/2026","1/2/2026");
+//	const my1stBill = makeBill("H 1st Bill","1/2/2026","8/2/2026");
+//	const my1stBill = makeBill("H 1st Bill","8/2/2026","12/2/2026");
+	const my1stBill = makeBill("H Feb Bill","12/1/2026","12/2/2026");
+
 	console.log(`name = ${my1stBill.billName},start = ${my1stBill.billStart},stop = ${my1stBill.billStop}`);
-	my1stBill.billName = "H new name";
-	console.log(`name = ${my1stBill.billName},start = ${my1stBill.billStart},stop = ${my1stBill.billStop}`);
-	const my2ndBill = makeBill("H 2nd Bill","7/1/2026","7/2/2026");
-	my1stBill.billStart = "4/1/2026";
-	console.log(`name = ${my1stBill.billName},start = ${my1stBill.billStart},stop = ${my1stBill.billStop}`);
-	console.log(`name = ${my2ndBill.billName},start = ${my2ndBill.billStart},stop = ${my2ndBill.billStop}`);
+	const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+	fetchAccountDataFromApi();
+	const tsheet = spreadsheet.getSheetByName('tariffs');
+	fetchTariffDataFromApiStartStop(my1stBill.billStart,my1stBill.billStop,tsheet);
+	const csheet = spreadsheet.getSheetByName('CF');
+	fetchPostDataFromApiStartStop(my1stBill.billStart,my1stBill.billStop,csheet);
+	const wsheet = spreadsheet.getSheetByName('Weather');
+	testGetWeatherStartStop(my1stBill.billStart,my1stBill.billStop,wsheet);
+	const sheet = spreadsheet.getSheetByName('consumption');
+	fetchDataFromApiStartStop(my1stBill.billStart,my1stBill.billStop,sheet);
 }
