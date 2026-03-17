@@ -716,7 +716,9 @@ function tryMakeBill() {
 //	const my1stBill = makeBill("H 1st Bill","25/1/2026","1/2/2026");
 //	const my1stBill = makeBill("H 1st Bill","1/2/2026","8/2/2026");
 //	const my1stBill = makeBill("H 1st Bill","8/2/2026","12/2/2026");
-	const my1stBill = makeBill("H Feb Bill","12/1/2026","12/2/2026");
+//	const my1stBill = makeBill("H Mar Bill","12/2/2026","12/3/2026");
+//	const my1stBill = makeBill("H Dec Bill","12/11/2025","12/12/2025");
+	const my1stBill = makeBill("H Nov Bill","12/10/2025","12/11/2025");
 
 	console.log(`name = ${my1stBill.billName},start = ${my1stBill.billStart},stop = ${my1stBill.billStop}`);
 	const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
