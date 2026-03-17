@@ -268,7 +268,7 @@ function fetchAccountDataFromApi() {
         const data = JSON.parse(json_data);
 
         if (!data || data.length === 0 || data.properties.length === 0) {
-          SpreadsheetApp.getUi().alert("API returned no data, empty array or no results.");
+          console.log(`fetchAccountDataFromApi: apiUrl: ${apiUrl}: API returned no data, empty array or no results.`);
           return;
         }
 
@@ -291,7 +291,7 @@ function fetchAccountDataFromApi() {
     sheet.autoResizeColumns(1, substituteHeaders.length);
   } catch (error) {
     // Error handling might now include 401 Unauthorized errors
-    SpreadsheetApp.getUi().alert(`Failed to fetch data: ${error.message}`);
+    console.log(`fetchAccountDataFromApi: apiUrl: ${apiUrl}: Failed to fetch data: ${error.message}`);
   }
 }
 /**
@@ -370,7 +370,7 @@ function fetchDataFromApiStartStop(startTime,stopTime,sheet) {
         const data = JSON.parse(json_data);
 
         if (!data || data.length === 0 || data.results.length === 0) {
-          SpreadsheetApp.getUi().alert("API returned no data, empty array or no results.");
+          console.log(`fetchDataFromApiStartStop: apiURL: ${apiUrl}: API returned no data, empty array or no results.`);
           return;
         }
 
@@ -395,7 +395,7 @@ function fetchDataFromApiStartStop(startTime,stopTime,sheet) {
 
   } catch (error) {
     // Error handling might now include 401 Unauthorized errors
-    SpreadsheetApp.getUi().alert(`Failed to fetch data: ${error.message}`);
+    console.log(`fetchDataFromApiStartStop: ApiUrl: ${apiUrl}: Failed to fetch data: ${error.message}`);
   }
 }
 /**
@@ -451,7 +451,7 @@ function fetchPostDataFromApiStartStop(startTime,stopTime,sheet) {
         const data = JSON.parse(json_data);
 
         if (!data || data.length === 0 || data.data.length === 0) {
-          SpreadsheetApp.getUi().alert("API returned no data, empty array or no results.");
+          console.log(`fetchPostDataFromApiStartStop: API returned no data, empty array or no results.`);
           return;
         }
 
@@ -473,7 +473,7 @@ function fetchPostDataFromApiStartStop(startTime,stopTime,sheet) {
 
   } catch (error) {
     // Error handling might now include 401 Unauthorized errors
-    SpreadsheetApp.getUi().alert(`Failed to fetch data: ${error.message}`);
+    console.log(`fetchPostDataFromApiStartStop: Failed to fetch data: ${error.message}`);
   }
 }
 /**
@@ -545,7 +545,7 @@ function fetchTariffDataFromApiStartStop(startTime,stopTime,sheet) {
         const data = JSON.parse(json_data);
 
         if (!data || data.length === 0 || data.results.length === 0) {
-          SpreadsheetApp.getUi().alert("API returned no data, empty array or no results.");
+          console.log(`fetchTariffDataFromApiStartStop: apiURL: ${apiUrl}: API returned no data, empty array or no results.`);
           return;
         }
 
@@ -568,7 +568,7 @@ function fetchTariffDataFromApiStartStop(startTime,stopTime,sheet) {
 
   } catch (error) {
     // Error handling might now include 401 Unauthorized errors
-    SpreadsheetApp.getUi().alert(`Failed to fetch data: ${error.message}`);
+    console.log(`fetchTariffDataFromApiStartStop: apiURL: ${apiUrl}: Failed to fetch data: ${error.message}`);
   }
 }
 /**
