@@ -49,7 +49,9 @@ function* pRange(start, end, step = 1) {
 function gSheetDate(ISOdateString) {
     const date1 = new Date("30 December 1899 UTC");
     const dateGoogleVal = date1.valueOf()/(24*60*60*1000);
-    return Date.parse(ISOdateString).valueOf()/(24*60*60*1000)-dateGoogleVal;
+	const parsedDate = Date.parse(ISOdateString);
+	const dateParsedDate = new Date(parsedDate);
+    return (parsedDate.valueOf()-dateParsedDate.getTimezoneOffset()*60*1000)/(24*60*60*1000)-dateGoogleVal;
 }
 /**
  * Wrapper function for gSheetDate that returns a gSheet formula mapped to a date
