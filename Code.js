@@ -108,9 +108,11 @@ const elecImportFormat = row => {
 const gasTariffCode = 'GasTariff';
 const dd = 'DIRECT_DEBIT';
 const gasQueryString = `query(myTable,"SELECT Col1 where Col6 = '${gasTariffCode}' and Col4 = '${dd}' and ((datetime '" & TEXT(R[0]C[-2], "yyyy-mm-dd HH:mm:ss.000") & "' < Col3 and datetime '" & TEXT(R[0]C[-2], "yyyy-mm-dd HH:mm:ss.000") & "' >= Col2) or ( Col3 is null and datetime '" & TEXT(R[0]C[-2], "yyyy-mm-dd HH:mm:ss.000") & "' >= Col2))")/100`;
-const avCalValueNew = `rounddown(query(query(Table3,"SELECT D,AVG(A) GROUP BY D"),"SELECT Col2 WHERE Col1 =" & R[0]C[-1],0),1)`;
+//const avCalValueNew = `rounddown(query(query(Table3,"SELECT D,AVG(A) GROUP BY D"),"SELECT Col2 WHERE Col1 =" & R[0]C[-1],0),1)`;
+const avCalValueNew = `rounddown(query(query({Table3[consumption],index(TEXT(Table3[Rate],"0.00000000"))},"SELECT Col2,AVG(Col1) GROUP BY Col2"),"SELECT Col2 WHERE Col1 ='" & TEXT(R[0]C[-1],"0.00000000") & "'",0),1)`;
 const gasCostString = `(((R[0]C[-4] * 1.02264 * ${avCalValueNew})/3.6)*R[0]C[-1])`;
 // const gasCostString = `${avCalValueNew}`;
+const gasKwString = `(((R[0]C[-4] * 1.02264 * ${avCalValueNew})/3.6)*1)`;
 const gasStTariffCode = 'GasTariffST';
 const gasStQueryString = `query(myTable,"SELECT Col1 where Col6 = '${gasStTariffCode}' and Col4 = '${dd}' and ((datetime '" & TEXT(R[0]C[-2], "yyyy-mm-dd HH:mm:ss.000") & "' < Col3 and datetime '" & TEXT(R[0]C[-2], "yyyy-mm-dd HH:mm:ss.000") & "' >= Col2) or ( Col3 is null and datetime '" & TEXT(R[0]C[-2], "yyyy-mm-dd HH:mm:ss.000") & "' >= Col2))")/100`;
 /**
@@ -119,7 +121,7 @@ const gasStQueryString = `query(myTable,"SELECT Col1 where Col6 = '${gasStTariff
  * @returns formatted row
  */
 const gasFormat = row => {
-            const formattedRow = [row[0],gSheetToDate(row[1]),gSheetToDate(row[2]),gasQueryString,gasCostString,"Gas"];
+            const formattedRow = [row[0],gSheetToDate(row[1]),gSheetToDate(row[2]),gasQueryString,gasCostString/*gasKwString*/,"Gas"];
             const outputRows = [formattedRow];
             if (checkDayStart(row[1])) {
               const extraRow = [1,gSheetToDate(row[1]),gSheetToDate(row[1]),gasStQueryString,'(R[0]C[-4]*R[0]C[-1])',"GStanding"];
@@ -357,9 +359,9 @@ function fetchDataFromApiStartStop(startTime,stopTime,sheet) {
   let dataToInsert;
   let dataToInsertNoHeaders = [];
   const processingSteps = [
-    {"apiURLType":"ElecImport","apiUrl":`api.octopus.energy/v1/electricity-meter-points/${importMPAN}/meters/${eMeter}/consumption/?period_from=${startTimeT}${stopTimeT !== null ? `&period_to=${stopTimeT}`:``}&order_by=period`,"formatFunc":elecImportFormat,"fetchOptions":options},
-    {"apiURLType":"Gas","apiUrl":`api.octopus.energy/v1/gas-meter-points/${gasMPRN}/meters/${gMeter}/consumption/?period_from=${startTimeT}${stopTimeT !== null ? `&period_to=${stopTimeT}`:``}&order_by=period`,"formatFunc":gasFormat,"fetchOptions":options},
-    {"apiURLType":"Export","apiUrl":`api.octopus.energy/v1/electricity-meter-points/${exportMPAN}/meters/${eMeter}/consumption/?period_from=${startTimeT}${stopTimeT !== null ? `&period_to=${stopTimeT}`:``}&order_by=period`,"formatFunc":exportFormat,"fetchOptions":options}
+    {"apiURLType":"ElecImport","apiUrl":`api.octopus.energy/v1/electricity-meter-points/${importMPAN}/meters/${eMeter}/consumption/?period_from=${startTimeT}${stopTimeT !== null ? `&period_to=${stopTimeT}`:``}`,"formatFunc":elecImportFormat,"fetchOptions":options},
+    {"apiURLType":"Gas","apiUrl":`api.octopus.energy/v1/gas-meter-points/${gasMPRN}/meters/${gMeter}/consumption/?period_from=${startTimeT}${stopTimeT !== null ? `&period_to=${stopTimeT}`:``}`,"formatFunc":gasFormat,"fetchOptions":options},
+    {"apiURLType":"Export","apiUrl":`api.octopus.energy/v1/electricity-meter-points/${exportMPAN}/meters/${eMeter}/consumption/?period_from=${startTimeT}${stopTimeT !== null ? `&period_to=${stopTimeT}`:``}`,"formatFunc":exportFormat,"fetchOptions":options}
   ]
 
   try {
@@ -375,12 +377,12 @@ function fetchDataFromApiStartStop(startTime,stopTime,sheet) {
           console.log(`fetchDataFromApiStartStop: apiURL: ${apiUrl}: API returned no data, empty array or no results.`);
           return;
         }
-
+        data.results.reverse();
         // --- Data processing logic (same as before) ---
         headers = Object.keys(data.results[0]);
         values = data.results.map(item => headers.map(header => item[header]));
         headers.push("Rate","Cost","Rate Type")
-        dataToInsertNoHeaders.push(...values.flatMap(step.formatFunc));
+        dataToInsertNoHeaders.unshift(...values.flatMap(step.formatFunc));
         apiUrl = data.next;
       }
     }
@@ -723,7 +725,7 @@ function tryMakeBill() {
 //	const my1stBill = makeBill("H Mar Bill","12/2/2026","12/3/2026");
 //	const my1stBill = makeBill("H Dec Bill","12/11/2025","12/12/2025");
 //	const my1stBill = makeBill("H Nov Bill","12/10/2025","12/11/2025");
-	const my1stBill = makeBill("H Debug Bill","30/03/2026","31/03/2026");
+	const my1stBill = makeBill("H Feb Bill","01/09/2025","1/10/2025");
 
 	console.log(`name = ${my1stBill.billName},start = ${my1stBill.billStart},stop = ${my1stBill.billStop}`);
 	const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
