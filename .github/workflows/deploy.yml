@@ -1,0 +1,26 @@
+name: Deploy
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+      - run: npm ci
+      - run: npm run lint && npm test
+      - name: Setup clasp credentials
+        run: |
+
+          echo '${{ secrets.CLASPRC_JSON }}' > ~/.clasprc.json
+          echo '${{ secrets.CLASP_JSON }}' > .clasp.json
+
+      - name: Push and version
+        run: |
+          npx @google/clasp push --force
+          npx @google/clasp version "$(git rev-parse --short HEAD)"
