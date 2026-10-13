@@ -652,11 +652,13 @@ function testGetWeatherStartStop(startTime,stopTime,sheet){
 function fetchAllDataFromApi(){
   const now = new Date();
   const startTime = new Date(now.getFullYear(),now.getMonth(),now.getDate() - 33);
+  const startTariffTime = new Date(now.getFullYear(),now.getMonth(),now.getDate() - 34); //ensure we get enough elec import tariff data
+  
   const stopTime = new Date(now.getFullYear(),now.getMonth(),now.getDate() - 2,0,-15);
   const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
   fetchAccountDataFromApi();
   const tsheet = spreadsheet.getSheetByName('tariffs');
-  fetchTariffDataFromApiStartStop(startTime,stopTime,tsheet);
+  fetchTariffDataFromApiStartStop(startTariffTime,stopTime,tsheet);
   const csheet = spreadsheet.getSheetByName('CF');
   fetchPostDataFromApiStartStop(startTime,stopTime,csheet);
   const wsheet = spreadsheet.getSheetByName('Weather');
