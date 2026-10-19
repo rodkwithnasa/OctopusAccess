@@ -629,11 +629,18 @@ function testGetWeatherStartStop(startTime,stopTime,sheet){
   }
   let outVals = [];
   const outValsH = [["Consumption","IntervalStart","IntervalEnd","Rate","Cost","Rate Type"]]
+  let prevTotRain = 0;
+  let dailyRain = 0;
   for (const val of accum) {
-    const [theDate,,,,,,,,,,,,,aveTemp,hiTemp,loTemp] = val.match(/\S+/g) || [];  
+    const [theDate,,,,,,,,,,,,,aveTemp,hiTemp,loTemp,totRain] = val.match(/\S+/g) || [];
+	dailyRain = totRain - prevTotRain;
+	if ( dailyRain < 0 ) dailyRain = totRain; // to cater for year end to year start transition
+	prevTotRain = totRain;
     outVals.push([aveTemp,parseDMY(theDate),0,0,0,"Average Temp"]);
     outVals.push([hiTemp,parseDMY(theDate),0,0,0,"Hi Temp"]);
     outVals.push([loTemp,parseDMY(theDate),0,0,0,"Lo Temp"]);
+    outVals.push([totRain,parseDMY(theDate),0,0,0,"Ttl Rain"]);
+    outVals.push([dailyRain,parseDMY(theDate),0,0,0,"Dly Rain"]);
   }
   const outVals2 = outVals.filter(arg => (arg[1]>=startTime) && (arg[1]<=stopTime)).map(row1=>
     [row1[0],gSheetToDate(row1[1].toISOString()),row1[2],row1[3],row1[4],row1[5]]
